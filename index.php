@@ -115,8 +115,19 @@ Route::add('/transfer/new', function() use($db) {
     //TODO: sprawdz dane i wykonaj przelew
     $userId = Token::getUserId($token, $db);
     $source = Account::getAccountNo($userId, $db);
+    $currentBalance = Account::getAccount($source, $db)->getArray()['amount'];
     $target = $dataArray['target'];
     $amount = $dataArray['amount'];
+    //Sprawdź, czy kwota przelewu jest dodatnia
+    if ($amount <= 0) {
+      header('HTTP/1.1 400 Bad Request');
+      return json_encode(['error' => 'Niepoprawna kwota, musi być dodatnia']);
+    }
+    //Sprawdź czy rachunek źródłowy zawiera wystarczającą ilość środków
+    if($currentBalance < $amount) {
+        header('HTTP/1.1 400 Bad Request');
+        return json_encode(['error' => 'Brak środków na koncie']);
+    }
     Transfer::new($source, $target, $amount, $db);
     header('Status: 200');
     return json_encode(['status' => 'OK']);
