@@ -9,6 +9,11 @@ require_once('model/User.php');
 //model tokena
 require_once('model/Token.php');
 require_once('model/Transfer.php');
+require_once('class/LoginRequest.php');
+require_once('class/LoginResponse.php');
+require_once('class/AccountDetailsRequest.php');
+require_once('class/AccountDetailsResponse.php');
+
 
 //połączenie do bazy danych
 //TODO: wyodrębnić zmienne dotyczące środowiska do pliku konfiguracyjnego
@@ -19,6 +24,10 @@ $db->set_charset('utf8');
 //użyj przestrzeni nazw od klasy routingu i od naszej klasy od rachunków
 use Steampixel\Route;
 use BankAPI\Account;
+use BankAPI\LoginRequest;
+use BankAPI\LoginResponse;
+use BankAPI\AccountDetailsRequest;
+use BankAPI\AccountDetailsResponse;
 
 //jeśli ktoś zapyta API bez żadnego parametru
 //zwróć hello world
@@ -30,27 +39,20 @@ Route::add('/', function() {
 //aplikacja wysyła  nam login i hasło zakodowane JSON metodą post
 //API odpowiada do aplikacji wysyłając token w formacie JSON
 Route::add('/login', function() use($db) {
-  //php nie potrafi odebrac JSONa w post tak jak formularza
-  //więc musimy odczytać
-  //dane z php input - tam znajdziemy JSONa
-  $data = file_get_contents('php://input');
-  $data = json_decode($data, true);
-  $ip = $_SERVER['REMOTE_ADDR'];
+  //utwórz obiekt żądania    
+  $request = new LoginRequest();
   try {
     //spróbuj zalogować użytkownika
-    $id = User::login($data['login'], $data['password'], $db);
+    $id = User::login($request->getLogin(), $request->getPassword(), $db);
     //wygeneruj nowy token dla tego użytkownika i tego IP
+    $ip = $_SERVER['REMOTE_ADDR'];
     $token = Token::new($ip, $id, $db);
-    //ustaw nagłówek odpowiedzi na JSON żeby przeglądarka 
-    //wiedziała jak interpretować dane
-    header('Content-Type: application/json');
-    //zwróć token w formacie JSON
-    echo json_encode(['token' => $token]);
+    //stwórz obiekt odpowiedzi
+    $response = new LoginResponse($token, "");
+    $response->send();
   } catch (Exception $e) {
-    //jeżeli nie udało się zalogować to zwróć błąd
-    header('HTTP/1.1 401 Unauthorized');
-    //czy naprawdę musimy zwracać jakąś treść?
-    echo json_encode(['error' => 'Invalid login or password']);
+    $response = new LoginResponse("", $e->getMessage());
+    $response->send();
     return;
   }
   
@@ -60,27 +62,23 @@ Route::add('/login', function() use($db) {
 //metoda identyfikuje użytkownika na podstawie tokenu
 //sprawdza w bazie i zwraca dane pierwszego znalezionego rachunku
 Route::add('/account/details', function() use($db) {
-    //zakładamy, że aplikacja przekazała nam token w postaci danych JSON
-    //przeczytaj surowe dane wejściowe z PHP
-    $data = file_get_contents('php://input');
-    //przekształć JSON wejściowe w tablicę asocjacyjną
-    $dataArray = json_decode($data, true);
-    //zakładam, ze w paczce danych jest token pod nazwą "token"
-    $token = $dataArray['token'];
-    //sprawdz poprawność tokena
-    if(!Token::check($token, $_SERVER['REMOTE_ADDR'], $db)) {
-        //jeżeli token jest niepoprawny to zwróć błąd
-        header('HTTP/1.1 401 Unauthorized');
-        //opcjonalnie
-        return json_encode(['error' => 'Invalid token']);
-    }
-    //pobierz id użytkownika na podstawie tokena
-    $userId = Token::getUserId($token, $db);
-    //wyciągamy numer rachunku i zwracamy go jako json
-    $accountNo = Account::getAccountNo($userId, $db);
-    $account = Account::getAccount($accountNo, $db);
-    header('Content-Type: application/json');
-    return json_encode($account->getArray());
+    
+  $request = new AccountDetailsRequest();
+  $response = new AccountDetailsResponse();
+  //sprawdz poprawność tokena
+  if(!Token::check($request->getToken(), $_SERVER['REMOTE_ADDR'], $db)) {
+      //jeżeli token jest niepoprawny to zapisz błąd w odpowiedzi
+      $response->setError('Invalid token');
+  }
+  //pobierz id użytkownika na podstawie tokena
+  $userId = Token::getUserId($request->getToken(), $db);
+  //wyciągamy numer rachunku i zwracamy go jako json
+  $accountNo = Account::getAccountNo($userId, $db);
+  $account = Account::getAccount($accountNo, $db);
+  //ładujemy dane o koncie do odpowiedzi
+  $response->setAccount($account->getArray());
+  //wysyłamy odpowiedź
+  $response->send();
 }, 'post');
 
 //ścieżka wyświetla dane dotyczące rachunku bankowego po jego numerze

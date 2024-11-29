@@ -5,9 +5,18 @@ namespace BankAPI;
 use mysqli;
 
 class Account {
+    /**
+     * Ta zmienna wywołuje numer rachunku
+     */
     //hermetyzacja - ukrywamy zmienne przed innymi klasami
     private $accountNo;
+    /**
+     * Ta zmienna wywołuje stan konta
+     */
     private $amount;
+    /**
+     * Ta zmienna wywołuje nazwę użytkownika
+     */
     private $name;
 
     //tworzy nowy obiekt klasy account na podstawie danych podanych jako argumenty

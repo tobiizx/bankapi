@@ -1,5 +1,16 @@
 <?php
 class User {
+    /**
+     * Ta metoda jest używana do autentyfikacji (zalogowania).
+     * Sprawdza czy użytkownik z takim loginem i hasłem
+     * istnieje w bazie danych i wyrzuca id użytkownika (jeśli istnieje).
+     * 
+     * @param string $login - login użytkownika
+     * @param string $password - hasło użytkownika
+     * @param mysqli $db - obiekt połączenia z bazą danych
+     * 
+     * @return int - id użytkownika
+     */
     //funkcja login zwraca id użytkownika jeżeli login i hasło są poprawne
     //jeśli login i hasło nie są poprawne to funkcja wrzuci wyjątek
     static function login(string $login, string $password, mysqli $db) : int {
