@@ -131,6 +131,24 @@ Route::add('/transfer/new', function() use($db) {
     return json_encode(['status' => 'OK']);
 }, 'post');
 
+Route::add('/transfers', function() use($db) {
+  $request = new TransfersRequest();
+  $response = new TransfersResponse();
+
+  if (!Token::check($request->getToken(), $_SERVER['REMOTE_ADDR'], $db)) {
+      $response->setError('Invalid token');
+      $response->send();
+      return;
+  }
+
+  $userId = Token::getUserId($request->getToken(), $db);
+  $accountNo = Account::getAccountNo($userId, $db);
+  $transfers = Transfer::getTransfersByAccount($accountNo, $db);
+
+  $response->setTransfers($transfers);
+  $response->send();
+}, 'post');
+
 //ta linijka musi być na końcu
 //musi tu być nazwa folderu w którym "mieszka" API
 Route::run('/bankAPI');

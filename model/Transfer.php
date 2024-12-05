@@ -38,5 +38,66 @@ class Transfer {
         }
         
     }
+
+    public static function getTransfersByAccount($accountNo, $db) {
+        $stmt = $db->prepare("SELECT * FROM transfer WHERE source = ? OR target = ?");
+        $stmt->bind_param("ss", $accountNo, $accountNo);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $transfers = [];
+        while ($row = $result->fetch_assoc()) {
+            $transfers[] = $row;
+        }
+        return $transfers;
+    }
+}
+
+class TransfersRequest {
+    private string $token;
+
+    public function __construct() {
+        $data = file_get_contents('php://input');
+        $dataArray = json_decode($data, true);
+        $this->token = $dataArray['token'];
+    }
+
+    public function getToken(): string {
+        return $this->token;
+    }
+}
+
+class TransfersResponse {
+    private array $transfers;
+    private string $error;
+
+    public function __construct() {
+        $this->transfers = [];
+        $this->error = "";
+    }
+
+    public function getJSON() {
+        $array = array();
+        $array['transfers'] = $this->transfers;
+        $array['error'] = $this->error;
+        return json_encode($array);
+    }
+
+    public function setTransfers(array $transfers) {
+        $this->transfers = $transfers;
+    }
+
+    public function setError(string $error) {
+        $this->error = $error;
+    }
+
+    public function send() {
+        if ($this->error != "") {
+            header('HTTP/1.1 401 Unauthorized');
+        } else {
+            header('HTTP/1.1 200 OK');
+        }
+        header('Content-Type: application/json');
+        echo $this->getJSON();
+    }
 }
 ?>
